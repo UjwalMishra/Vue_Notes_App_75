@@ -1,85 +1,74 @@
 <template>
   <div 
-    class="group bg-white border border-gray-100 p-8 rounded-[32px] hover:border-black/20 transition-all duration-500 hover:shadow-2xl hover:shadow-black/5 flex flex-col h-full"
+    class="card-premium h-full flex flex-col gap-6 cursor-pointer animate-slide-up group" 
+    :style="{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }"
+    @click="goToDetail"
   >
-    <div class="flex justify-between items-start mb-6">
-      <span class="text-[10px] uppercase tracking-widest text-gray-400 font-black">
-        {{ timeLabel(note.updatedAt) }}
-      </span>
-      <div class="flex gap-1 transition-opacity">
-        <button 
-          @click="shareNote(note)" 
-          class="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-all"
-          title="Share Note"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-        </button>
-        <button 
-          @click="removeNote(note.id)" 
-          class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-          title="Delete Note"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
+    <div class="flex justify-between items-start">
+      <div 
+        class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-500"
+        :class="typeStyles[note.type]"
+      >
+        <span class="text-sm leading-none">{{ typeIcons[note.type] }}</span>
+        <span class="text-[10px] font-black uppercase tracking-widest">{{ note.type }}</span>
+      </div>
+      <div class="flex flex-col items-end">
+        <span class="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{{ formattedDate }}</span>
       </div>
     </div>
+    
+    <div class="flex flex-col gap-3">
+      <h3 class="text-xl font-black tracking-tight text-primary leading-tight group-hover:text-accent transition-colors duration-500">
+        {{ note.title || 'Untitled Thought' }}
+      </h3>
+      <p class="text-[15px] font-medium text-slate-500 leading-relaxed line-clamp-3">
+        {{ note.content || 'This entry is awaiting your profound insights.' }}
+      </p>
+    </div>
 
-    <input 
-      v-model="internalTitle" 
-      @input="onInput" 
-      placeholder="Untitled" 
-      class="block w-full text-2xl font-bold bg-transparent border-none outline-none mb-4 placeholder:text-gray-200"
-    />
-    <textarea 
-      v-model="internalBody" 
-      @input="onInput" 
-      placeholder="Start writing..." 
-      rows="6" 
-      class="block w-full text-lg bg-transparent border-none outline-none resize-none text-gray-600 leading-relaxed placeholder:text-gray-200 flex-grow"
-    ></textarea>
+    <div class="mt-auto flex flex-wrap gap-2 pt-4 border-t border-slate-50 opacity-60 group-hover:opacity-100 transition-opacity duration-500" v-if="note.tags.length">
+      <span 
+        v-for="tag in note.tags" 
+        :key="tag" 
+        class="text-[11px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 transition-all hover:bg-primary hover:text-white"
+      >
+        #{{ tag }}
+      </span>
+    </div>
+
+    <div class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
+      <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs shadow-lg">→</div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { removeNote, shareNote, updateNote } from '../store';
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { type Note } from '../types'
+import { format } from 'date-fns'
 
-const props = defineProps<{
-  note: {
-    id: string;
-    title: string;
-    body: string;
-    updatedAt: number;
-  }
-}>();
+const props = defineProps<{ 
+  note: Note,
+  index: number
+}>()
+const router = useRouter()
 
-const internalTitle = ref(props.note.title);
-const internalBody = ref(props.note.body);
+const formattedDate = computed(() => format(props.note.createdAt, 'MMM d'))
 
-// Sync internal state with props if they change externally (though unlikely in this simple app)
-watch(() => props.note.title, (newVal) => internalTitle.value = newVal);
-watch(() => props.note.body, (newVal) => internalBody.value = newVal);
+const typeStyles = {
+  note: 'bg-indigo-50/50 text-indigo-600 border-indigo-100/50',
+  link: 'bg-emerald-50/50 text-emerald-600 border-emerald-100/50',
+  video: 'bg-rose-50/50 text-rose-600 border-rose-100/50'
+}
 
-let timeout: ReturnType<typeof setTimeout> | null = null;
+const typeIcons = {
+  note: '🗒️',
+  link: '🔗',
+  video: '📺'
+}
 
-const onInput = () => {
-  if (timeout) clearTimeout(timeout);
-  timeout = setTimeout(() => {
-    updateNote(props.note.id, {
-      title: internalTitle.value,
-      body: internalBody.value
-    });
-  }, 500);
-};
-
-const timeLabel = (ts: number) => {
-  const date = new Date(ts);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  
-  if (isToday) {
-    return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  }
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-};
+const goToDetail = () => {
+  router.push(`/note/${props.note.id}`)
+}
 </script>
